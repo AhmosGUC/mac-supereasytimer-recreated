@@ -20,8 +20,13 @@ install uninstall purge dist:
 previews:
 	@echo "not implemented yet (#8)"; exit 78
 
+ICON_DIR = .build/icon
+
 icon:
-	@echo "not implemented yet (#13)"; exit 78
+	swift scripts/make-icon.swift $(ICON_DIR)/AppIcon.iconset
+	iconutil -c icns -o $(ICON_DIR)/AppIcon.icns $(ICON_DIR)/AppIcon.iconset
+	mkdir -p docs/images
+	cp $(ICON_DIR)/AppIcon.iconset/icon_512x512@2x.png docs/images/icon-1024.png
 
 clean:
 	rm -rf .build dist
