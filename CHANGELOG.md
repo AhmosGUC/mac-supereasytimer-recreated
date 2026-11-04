@@ -7,3 +7,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - Clean-room rules, MIT license, product spec, contribution docs and PR/issue templates.
+- Repository scaffold: SwiftPM package, `TimerCore` + app skeleton, Makefile, `AGENTS.md`.
