@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core-linux:
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+      - name: Test
+        run: |
+          swift test --parallel 2>&1 | tee test.log
+          { echo "### core-linux"; grep -E 'Executed [0-9]+ tests?|Test run with' test.log | tail -n 1; } >> "$GITHUB_STEP_SUMMARY"
+
+  # macos-15 is the newest GA macOS runner label at the time of writing; bump it when a newer one ships.
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: swift --version && sw_vers
+      - uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
+      - run: swift build -c debug
+      - name: Test
+        run: |
+          swift test --parallel 2>&1 | tee test.log
+          { echo "### macos"; grep -E 'Executed [0-9]+ tests?|Test run with' test.log | tail -n 1; } >> "$GITHUB_STEP_SUMMARY"
+
+      # make reports a recipe's exit 78 ("not implemented") as "Error 78" but exits 2 itself, so match the message.
+      - name: Build app (make app)
+        id: app
+        run: |
+          rc=0; out=$(make app 2>&1) || rc=$?; echo "$out"
+          if [ "$rc" -eq 0 ]; then echo "built=true" >> "$GITHUB_OUTPUT"
+          elif ! grep -q "Error 78" <<< "$out"; then exit "$rc"
+          else echo "make app not implemented yet, skipping"; fi
+      - name: Verify app bundle
+        if: steps.app.outputs.built == 'true'
+        run: |
+          codesign --verify --strict --verbose=2 dist/CornerTimer.app
+          plutil -lint dist/CornerTimer.app/Contents/Info.plist
+          ditto -c -k --keepParent dist/CornerTimer.app dist/CornerTimer.zip
+      - uses: actions/upload-artifact@v4
+        if: steps.app.outputs.built == 'true'
+        with:
+          name: app-build
+          path: dist/CornerTimer.zip
+          retention-days: 14
+
+      - name: Render previews (make previews)
+        id: previews
+        run: |
+          rc=0; out=$(make previews 2>&1) || rc=$?; echo "$out"
+          if [ "$rc" -eq 0 ]; then
+            echo "built=true" >> "$GITHUB_OUTPUT"
+            echo "UI previews: download artifact \`ui-previews\`" >> "$GITHUB_STEP_SUMMARY"
+          elif ! grep -q "Error 78" <<< "$out"; then exit "$rc"
+          else echo "make previews not implemented yet, skipping"; fi
+      - uses: actions/upload-artifact@v4
+        if: steps.previews.outputs.built == 'true'
+        with:
+          name: ui-previews
+          path: previews/
+          retention-days: 14
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Forbidden product names
+        run: |
+          hits=$(git grep -nIi -E 'super ?easy ?(timer|apps)' -- . ':!docs/CLEAN_ROOM.md' ':!docs/PRODUCT_SPEC.md' ':!README.md' ':!.github' | grep -v 'mac-supereasytimer-recreated' || true)
+          [ -z "$hits" ] || { echo "$hits"; exit 1; }
+      - name: TimerCore stays platform-independent
+        run: "! git grep -nE '^\\s*(@testable\\s+)?import\\s+(AppKit|SwiftUI|Combine|UIKit|os)\\b' -- Sources/TimerCore"
