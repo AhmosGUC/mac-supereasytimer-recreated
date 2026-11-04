@@ -15,3 +15,4 @@ These rules are binding for every contributor, human or AI agent, on every PR.
 
 | File | Created by (tool/command) | Author | Date | License |
 |---|---|---|---|---|
+| AppIcon (all sizes), `docs/images/icon-1024.png` | `scripts/make-icon.swift` via `make icon` | CornerTimer contributors | 2026-11-04 | MIT |
