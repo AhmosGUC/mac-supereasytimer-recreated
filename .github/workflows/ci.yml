@@ -12,6 +12,11 @@ concurrency:
 permissions:
   contents: read
 
+# Explicit bash enables pipefail, so `swift test | tee` still fails the step when tests fail.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   core-linux:
     runs-on: ubuntu-latest
