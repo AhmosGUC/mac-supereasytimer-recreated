@@ -14,6 +14,7 @@ targets.append(.executableTarget(
     name: "CornerTimerApp",
     dependencies: ["TimerCore", .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")]
 ))
+targets.append(.testTarget(name: "CornerTimerAppTests", dependencies: ["CornerTimerApp"]))
 products.append(.executable(name: "CornerTimer", targets: ["CornerTimerApp"]))
 #endif
 
